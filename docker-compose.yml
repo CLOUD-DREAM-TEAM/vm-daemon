@@ -1,0 +1,10 @@
+name: vm-runner
+services:
+  be:
+    container_name: listener
+    platform: linux/amd64
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "7000:80"
