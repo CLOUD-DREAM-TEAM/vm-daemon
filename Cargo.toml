@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 rocket = { version = "0.5.1", features = ["json"] }
 
-tokio = { version = "1.48.0", features = ["full"] }
+tokio = { version = "1.51.0", features = ["full"] }
 async-trait = { version = "0.1.89" }
 futures = { version = "0.3.31" }
 futures-util = { version = "0.3.31" }
@@ -16,5 +16,7 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.148" }
+
+reqwest = { version = "0.13.2", features = ["json"] }
 
 openssl = { version = "0.10.76", features = ["vendored"] } # for docker image

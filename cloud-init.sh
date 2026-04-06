@@ -21,4 +21,3 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 docker pull ghcr.io/the-aurora/vm-runner:latest
 
 docker run -d -p 7000:80 --name vm-runner ghcr.io/the-aurora/vm-runner:latest
- 

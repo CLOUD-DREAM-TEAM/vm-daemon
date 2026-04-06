@@ -6,5 +6,11 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
+    environment:
+      - VM_ID=1
+      - RUST_LOG=debug
+      - ORCHESTRATOR_URL=http://host.docker.internal:8080
+      - LOGS_PORT=8081
+      - VM_REPORT_INTERVAL=5
     ports:
       - "7000:80"

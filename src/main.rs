@@ -9,8 +9,11 @@ use rocket::http::Status;
 use rocket::response::status::NoContent;
 
 use rocket::Request;
+use std::sync::Arc;
 
 mod endpoints;
+mod metric_reporter;
+mod orchestrator_poller;
 
 mod models;
 pub use models::*;
@@ -46,26 +49,75 @@ impl fairing::Fairing for CORS {
 // ============================================================================
 
 fn main() {
-    let result = start();
+    tracing_subscriber::fmt::init();
 
-    info!("Rocket: deorbit.");
+    let config_result = check_envs_and_parse_config();
 
-    if let Some(err) = result.err() {
-        error!("Error: {:?}", err);
+    if config_result.is_err() {
+        error!(
+            "Environment variable check failed: {}",
+            config_result.err().unwrap()
+        );
+    } else {
+        info!("All required environment variables are set.");
+
+        let result = start(config_result.unwrap());
+
+        info!("Rocket: deorbit.");
+
+        if let Some(err) = result.err() {
+            error!("Error: {:?}", err);
+        }
     }
 }
 
+fn check_envs_and_parse_config() -> Result<Config, String> {
+    let mut vm_id = std::env::var("VM_ID").unwrap_or("".to_string());
+    if vm_id.is_empty() {
+        vm_id = std::env::var("NOVA_SERVER_ID").unwrap_or("".to_string());
+    }
+    if vm_id.is_empty() {
+        return Err("Neither VM_ID nor NOVA_SERVER_ID env vars are set.".to_string());
+    }
+
+    let orchestrator_url = std::env::var("ORCHESTRATOR_URL")
+        .map_err(|_| "ORCHESTRATOR_URL env var is not set.".to_string())?;
+    let orchestrator_url = reqwest::Url::parse(&orchestrator_url)
+        .map_err(|_| "ORCHESTRATOR_URL env var is not a valid URL.".to_string())?;
+
+    let logs_port =
+        std::env::var("LOGS_PORT").map_err(|_| "LOGS_PORT env var is not set.".to_string())?;
+    let logs_port = logs_port
+        .parse()
+        .map_err(|_| "LOGS_PORT env var is not a valid u16.".to_string())?;
+
+    let vm_report_interval = std::env::var("VM_REPORT_INTERVAL")
+        .map_err(|_| "VM_REPORT_INTERVAL env var is not set.".to_string())?;
+    let vm_report_interval = vm_report_interval
+        .parse()
+        .map_err(|_| "VM_REPORT_INTERVAL env var is not a valid u16.".to_string())?;
+
+    Ok(Config {
+        vm_id,
+        orchestrator_url,
+        logs_port,
+        vm_report_interval,
+    })
+}
+
 #[tokio::main]
-async fn start() -> Result<(), Box<rocket::Error>> {
+async fn start(config: Config) -> Result<(), Box<rocket::Error>> {
+    let config = Arc::new(config);
+    let shared_simulation_settings = SharedSimulationSettings::default();
+
+    orchestrator_poller::spawn(config.clone(), shared_simulation_settings.clone());
+    metric_reporter::spawn(config.clone(), shared_simulation_settings.clone());
+
     rocket::build()
         .attach(CORS)
-        .mount(
-            "/",
-            routes![
-                options_preflight,
-                endpoints::test::test,
-            ],
-        )
+        .manage(config)
+        .manage(shared_simulation_settings)
+        .mount("/", routes![options_preflight, endpoints::test::test,])
         .register("/", catchers![not_found])
         .launch()
         .await
