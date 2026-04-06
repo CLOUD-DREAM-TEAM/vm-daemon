@@ -18,6 +18,12 @@ sudo apt update
 
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-docker pull ghcr.io/the-aurora/vm-runner:latest
+docker pull ghcr.io/CLOUD-DREAM-TEAM/vm-runner:latest
 
-docker run -d -p 7000:80 --name vm-runner ghcr.io/the-aurora/vm-runner:latest
+docker run -d -p 7000:80 --name vm-runner \
+  -e RUST_LOG="${RUST_LOG:-debug}" \
+  -e VM_ID="${VM_ID}" \
+  -e ORCHESTRATOR_URL="${ORCHESTRATOR_URL}" \
+  -e LOGS_PORT="${LOGS_PORT}" \
+  -e VM_REPORT_INTERVAL="${VM_REPORT_INTERVAL}" \
+  ghcr.io/CLOUD-DREAM-TEAM/vm-runner:latest
